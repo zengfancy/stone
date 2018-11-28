@@ -120,6 +120,20 @@ bool comp(Pair a, Pair b) {
     return a.y_pred < b.y_pred;
 }
 
+void output_model() {
+  cout << "bias:" << g_model.bias << "\n";
+  cout << "ws:";
+  for (int i=0; i<g_model.ws.size(); ++i) {
+    cout << g_model.ws[i] << "  ";
+  }
+  cout << "\n";
+  cout << "vs:";
+  for (int i=0; i<g_model.vs.size(); ++i) {
+    cout << g_model.vs[i] << "  ";
+  }
+  cout << "\n";
+}
+
 float calc_auc(const vector<Sample>& samples) {
     int32_t len = samples.size();
     vector<Pair> pairs;
@@ -173,7 +187,7 @@ void calc_test_data_auc() {
     cout << "test  auc:" << auc << endl;
 }
 
-void update_once(float& delta_sum, int32_t from, int32_t to) {
+void update_once(float delta_sum, int32_t from, int32_t to) {
     float delta = delta_sum * g_learning_rate;
     for (int i=from; i<to; ++i) {
         Sample& s = g_samples[i];
@@ -198,6 +212,7 @@ void train_once() {
     for (int i=0; i<len; ++i) {
         if (i % batch == 0 && i > 0) {
             update_once(delta_sum, from, i);
+            delta_sum = 0;
             from = i;
         }
         Sample& s = g_samples[i];
@@ -218,6 +233,7 @@ void train_once() {
     }
 
     update_once(delta_sum, from, len);
+    delta_sum = 0;
 }
 
 int main(int argc, char* argv[]) {
@@ -233,6 +249,7 @@ int main(int argc, char* argv[]) {
         if (i % 10 == 0 && i > 0) {
             calc_train_data_auc();
             calc_test_data_auc();
+            output_model();
         }
     }
 }
