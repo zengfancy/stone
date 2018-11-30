@@ -34,15 +34,8 @@ Model g_model;
 vector<Sample> g_samples;
 vector<Sample> g_test_samples;
 int32_t g_vlen = 12;
-int32_t g_app_num = 1000;
+int32_t g_app_num = 900;
 
-// 月访问次数
-// 某天访问最大次数
-// 访问天数
-// 一天访问平均次数
-// 第1,2,3,4,5,6周访问次数
-// 月访问活跃值
-// 月访问次数占比
 int32_t g_used_vs[] = {1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0};
 int32_t g_used_vlen = 3;
 
@@ -50,14 +43,19 @@ float g_learning_rate = 0.01f;
 float l1 = 0.0001f;
 float l2 = 0.0001f;
 
-string g_file_path = "test.data.txt";
+string g_file_path = "";
 
 bool use_feat(int32_t index) {
   int32_t v = (index - 1) % g_vlen;
-  return v == 1 || v == 2 || v == 11;
+  return v == 0 || v == 1 || v == 10;
 }
 
-// if index == 12, w = 0, _v = 11, v = 2
+const int32_t NUMBER = 4000;
+
+bool is_multiple(int32_t index, int32_t num) {
+    return index % num == 0;
+}
+
 void get_wv(int32_t index, int32_t& w, int32_t& v) {
   w = (index - 1) / g_vlen;
   int32_t _v = (index - 1) % g_vlen;
@@ -97,7 +95,7 @@ void init_data() {
           continue;
         }
         int rnum = rand() % 100;
-        if (rnum < 40) {
+        if (rnum < 20) {
           g_test_samples.push_back(s);
         } else {
           g_samples.push_back(s);
@@ -112,7 +110,7 @@ void init_data() {
 void init_model() {
     g_model.bias = 0;
 
-    g_model.ws.resize(g_app_num, 0.01f);
+    g_model.ws.resize(g_app_num, -0.1f);
     g_model.vs.resize(g_used_vlen, 1.0f);
 }
 
@@ -124,7 +122,9 @@ void output_model() {
   cout << "bias:" << g_model.bias << "\n";
   cout << "ws:";
   for (int i=0; i<g_model.ws.size(); ++i) {
-    cout << g_model.ws[i] << "  ";
+    if (i % 10 == 0) {
+      cout << g_model.ws[i] << "  ";
+    }
   }
   cout << "\n";
   cout << "vs:";
@@ -157,7 +157,6 @@ float calc_auc(const vector<Sample>& samples) {
         pairs.push_back(p);
     }
 
-    // ascending sort
     sort(pairs.begin(), pairs.end(), comp);
 
     int P = 0;
@@ -187,10 +186,16 @@ void calc_test_data_auc() {
     cout << "test  auc:" << auc << endl;
 }
 
-void update_once(float delta_sum, int32_t from, int32_t to) {
-    float delta = delta_sum * g_learning_rate;
+void update_once(vector<float> deltas, int32_t from, int32_t to) {
     for (int i=from; i<to; ++i) {
+        bool flag = false;
+        if (is_multiple(i, NUMBER)) {
+            flag = true;
+        }
         Sample& s = g_samples[i];
+        float delta = deltas[i] * g_learning_rate;
+        
+        if (flag) cout << "sample:" << i << ", delta:" << delta << "\t";
         for (int j=0; j<s.feats.size(); ++j) {
             int32_t& index = s.feats[j].index;
             float& val = s.feats[j].value;
@@ -199,20 +204,23 @@ void update_once(float delta_sum, int32_t from, int32_t to) {
             g_model.ws[w_i] += delta * g_model.vs[v_i] * val - l2 * g_model.ws[w_i];
             g_model.vs[v_i] += delta * g_model.ws[w_i] * val - l2 * g_model.vs[v_i];
 
+            if (flag) cout << "val:" << val << ", weight:" << g_model.ws[w_i] << ", v:" << g_model.vs[v_i] << "\t";
             g_model.bias += delta - l2 * g_model.bias;
         }
+
+        if (flag) cout << "\n";
     }
 }
 
 void train_once() {
     int32_t len = g_samples.size();
-    int32_t batch = 1000;
-    float delta_sum = 0;
+    int32_t batch = 300;
     int32_t from = 0;
+    vector<float> deltas;
     for (int i=0; i<len; ++i) {
         if (i % batch == 0 && i > 0) {
-            update_once(delta_sum, from, i);
-            delta_sum = 0;
+            update_once(deltas, from, i);
+            deltas.clear();
             from = i;
         }
         Sample& s = g_samples[i];
@@ -229,11 +237,14 @@ void train_once() {
         sum += g_model.bias;
 
         float y_pred = sigmoid(sum);
-        delta_sum += (float)s.label - y_pred;
+        if (is_multiple(i, NUMBER)) {
+            cout << "sample:" << i << "Label:" << s.label << ", pred:" << y_pred << endl;
+        }
+        deltas.push_back((float)s.label - y_pred);
     }
 
-    update_once(delta_sum, from, len);
-    delta_sum = 0;
+    update_once(deltas, from, len);
+    deltas.clear();
 }
 
 int main(int argc, char* argv[]) {
