@@ -35,6 +35,8 @@ vector<Sample> g_test_samples;
 int32_t g_vlen = 12;
 int32_t g_app_num = 1000;
 
+const int32_t NUMBER = 4000;
+
 int32_t g_used_vs[] = {1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0};
 int32_t g_used_vlen = 3;
 
@@ -43,6 +45,10 @@ float l1 = 0.0001f;
 float l2 = 0.0001f;
 
 string g_file_path = "part-r-00000-libsvm-test";
+
+bool is_multiple(int32_t index, int32_t num) {
+    return index % num == 0;
+}
 
 bool use_feat(int32_t index) {
   int32_t v = index  % g_vlen;
@@ -108,7 +114,7 @@ void init_data() {
 void init_model() {
     g_model.bias = 0;
 
-    g_model.ws.resize(g_app_num * 12, -0.5f);
+    g_model.ws.resize(g_app_num * 12, -0.01f);
 }
 
 bool comp(Pair a, Pair b) {
@@ -183,7 +189,7 @@ void update_once(vector<float> deltas, int32_t from, int32_t to) {
             flag = true;
         }
         Sample& s = g_samples[i];
-        float delta = deltas[i] * g_learning_rate;
+        float delta = deltas[i - from] * g_learning_rate;
 
         if (flag) cout << "sample:" << i << ", delta:" << delta << "\t";
         for (int j=0; j<s.feats.size(); ++j) {
@@ -191,18 +197,18 @@ void update_once(vector<float> deltas, int32_t from, int32_t to) {
             float& val = s.feats[j].value;
 
             g_model.ws[index] += delta * val - l2 * g_model.ws[index];
-            g_model.bias += delta - l2 * g_model.bias;
 
             if (flag) cout << "val:" << val << ", weight:" << g_model.ws[index] << "\t";
         }
-        if (flag) cout << "\n";
+        g_model.bias += delta - l2 * g_model.bias;
+        if (flag) cout << "bias:" << g_model.bias << "\n";
     }
 }
 
 void train_once() {
     int32_t len = g_samples.size();
     int32_t batch = 300;
-    vector<float> deltas = 0;
+    vector<float> deltas;
     int32_t from = 0;
     for (int i=0; i<len; ++i) {
         if (i % batch == 0 && i > 0) {
@@ -239,7 +245,7 @@ int main(int argc, char* argv[]) {
     cout << "init data...\n";
     init_model();
 
-    for (int i=0; i<1000; ++i) {
+    for (int i=0; i<100; ++i) {
         train_once();
         if (i % 10 == 0 && i > 0) {
             calc_train_data_auc();

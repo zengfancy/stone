@@ -34,20 +34,20 @@ Model g_model;
 vector<Sample> g_samples;
 vector<Sample> g_test_samples;
 int32_t g_vlen = 12;
-int32_t g_app_num = 900;
+int32_t g_app_num = 1000;
 
 int32_t g_used_vs[] = {1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0};
 int32_t g_used_vlen = 3;
 
-float g_learning_rate = 0.01f;
+float g_learning_rate = 0.001f;
 float l1 = 0.0001f;
-float l2 = 0.0001f;
+float l2 = 0.000000f;
 
-string g_file_path = "";
+string g_file_path = "libsvm.data";
 
 bool use_feat(int32_t index) {
-  int32_t v = (index - 1) % g_vlen;
-  return v == 0 || v == 1 || v == 10;
+  int32_t v = index  % g_vlen;
+  return v == 1 || v == 2 || v == 11;
 }
 
 const int32_t NUMBER = 4000;
@@ -119,7 +119,7 @@ void init_data() {
 void init_model() {
     g_model.bias = 0;
 
-    g_model.ws.resize(g_app_num, -0.1f);
+    g_model.ws.resize(g_app_num, -0.01f);
     g_model.vs.resize(g_used_vlen, 1.0f);
 }
 
@@ -187,7 +187,7 @@ float calc_auc(const vector<Sample>& samples) {
 
 void calc_train_data_auc() {
     float auc = calc_auc(g_samples);
-    cout << "train auc:" << auc << endl;
+    cout << "train auc:" << auc << "\t";
 }
 
 void calc_test_data_auc() {
@@ -202,7 +202,7 @@ void update_once(vector<float> deltas, int32_t from, int32_t to) {
             flag = true;
         }
         Sample& s = g_samples[i];
-        float delta = deltas[i] * g_learning_rate;
+        float delta = deltas[i - from] * g_learning_rate;
         
         if (flag) cout << "sample:" << i << ", delta:" << delta << "\t";
         for (int j=0; j<s.feats.size(); ++j) {
@@ -214,16 +214,16 @@ void update_once(vector<float> deltas, int32_t from, int32_t to) {
             g_model.vs[v_i] += delta * g_model.ws[w_i] * val - l2 * g_model.vs[v_i];
 
             if (flag) cout << "val:" << val << ", weight:" << g_model.ws[w_i] << ", v:" << g_model.vs[v_i] << "\t";
-            g_model.bias += delta - l2 * g_model.bias;
         }
+        g_model.bias += delta - l2 * g_model.bias;
 
-        if (flag) cout << "\n";
+        if (flag) cout << "bias:" << g_model.bias << "\n";
     }
 }
 
 void train_once() {
     int32_t len = g_samples.size();
-    int32_t batch = 300;
+    int32_t batch = 1000;
     int32_t from = 0;
     vector<float> deltas;
     for (int i=0; i<len; ++i) {
@@ -263,10 +263,10 @@ int main(int argc, char* argv[]) {
     cout << "init data...\n";
     init_model();
 
-    for (int i=0; i<100; ++i) {
+    for (int i=0; i<50; ++i) {
         cout << "train step:" << i << endl;
         train_once();
-        if (i % 10 == 0 && i > 0) {
+        if (true || i % 10 == 0 && i > 0) {
             calc_train_data_auc();
             calc_test_data_auc();
             output_model();
