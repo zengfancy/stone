@@ -1,6 +1,10 @@
 /*
  *
  * 对特征做了缩放处理，能涨到0.6645左右
+ *
+ * feat_value /= sum_feat_value
+ * feat_value *= sqrt(sum_feat_value)
+ *
 train auc:0.69211       test auc:0.664456
 train auc:0.692249      test auc:0.66446
 train auc:0.692388      test auc:0.664459
