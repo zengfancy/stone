@@ -1,7 +1,8 @@
 /*
- *
- *
-*/
+ * bagging : bagging multiple weak classifier into 1
+ * {0.6617, 0.6644} -> 0.6852
+ */
+
 #include <vector>
 #include <iostream>
 #include <algorithm>
@@ -48,9 +49,9 @@ const int32_t NUMBER = 400;
 int32_t g_used_vs[] = {1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0};
 int32_t g_used_vlen = 4;
 
-float g_learning_rate = 0.0040f;
-float l1 = 0.00015f;
-float l2 = 0.00020f;
+float g_learning_rate = 0.0015f;
+float l1 = 0.00006f;
+float l2 = 0.00010f;
 
 string g_file_path = "mod_libsvm.data";
 
@@ -97,6 +98,7 @@ void init_data() {
             Feat feat;
             feat.index = atoi(index_str.c_str());
             feat.value = atof(val_str.c_str()) * 0.01f;
+if (feat.value > 1.0f) feat.value = 1.0f;
             weight_sum[feat.index % 12] += feat.value;
             if (use_feat(feat.index)) {
               s1.feats.push_back(feat);
@@ -115,10 +117,10 @@ void init_data() {
         int rnum = rand() % 100;
         if (rnum < 20) {
           g_test_samples1.push_back(s1);
-          g_test_samples1.push_back(s2);
+          g_test_samples2.push_back(s2);
         } else {
           g_samples1.push_back(s1);
-          g_samples1.push_back(s2);
+          g_samples2.push_back(s2);
         }
     }
 
@@ -198,7 +200,7 @@ float calc_final_auc() {
 
         Pair p;
         p.y_pred = sqrt(sigmoid(sum1) * sigmoid(sum2));
-        
+
         p.label = s1.label;
         pairs.push_back(p);
     }
@@ -306,5 +308,3 @@ int main(int argc, char* argv[]) {
     float auc = calc_final_auc();
     cout << "final auc:" << auc << endl;
 }
-
-
